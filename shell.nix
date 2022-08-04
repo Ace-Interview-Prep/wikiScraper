@@ -6,8 +6,8 @@ let
   scrappySrc = pkgs.fetchFromGitHub {
     owner = "Ace-Interview-Prep";
     repo = "scrappy";
-    rev =  "17bb4b782aa3f01a507349ede6b3af53d9fba7da";
-    sha256 = "1j8dn9jrbx972hmxjx8ri60h6z5fpmg0v3ijqlsn7qigjw3qbwzf";
+    rev =  "dfa79ce72c921054d4906a833dbfc1e879c24b41";
+    sha256 = "1bl0n8bz461x5dal912768md2y8d8a0h5glgs5fj9hfb4p8kwkfw";
   };
   scrappy = pkgs.haskellPackages.callCabal2nix "scrappy" scrappySrc {}; 
   f = { mkDerivation, base, lib }:
