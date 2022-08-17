@@ -1,0 +1,56 @@
+module Main where
+
+import Scrappy.Requests import Scrappy.Scrape import Scrappy.Elem.ChainHTML import 
+Scrappy.Elem.SimpleElemParser import Scrappy.Elem.Types (getHrefEl, innerHtmlFull, Elem') import Scrappy.Links 
+import Scrappy.BuildActions (catEithers) -- TODO: Move to Scrappy.Types
+
+import Network.HTTP.Client (newManager) import Network.HTTP.Client.TLS (tlsManagerSettings) import Text.Parsec 
+(anyChar, (<|>), parse, many, try) import Control.Applicative (liftA2) import Data.Maybe (catMaybes) import 
+Data.Text (Text) import Data.List
+
+main :: IO () main = do mgr <- newManager tlsManagerSettings (_, html) <- getHtml mgr $ Link 
+  "https://en.wikipedia.org/wiki/Network_topology"
+
+
+  
+
+  let res = flip scrape html $ pTagWithLinks $ Link "https://en.wikipedia.org/wiki/Network_topology" XXX X 
+print res exit
+  -- writeFile "results.txt" $ show $ maybe [] id tickerPrices
+
+
+-- Only since we care about the links here, otherwise this would be the parser that ignores style tags 
+pTagWithLinks :: Link -> ScraperT (Elem' String, [Link])
+pTagWithLinks cLink = do
+  e <- el "p" []
+  let txt = innerHtmlFull e
+  eiths <- case parse f "in p tag" txt of
+    Right x -> pure x 
+    --Right (words, links) -> pure (e { innerHtmlFull = words }, links)
+    Left _ -> error "idk ... weird" 
+
+
+  let words = g eiths
+  -- True because we'd like to stay on the same site 
+  let links = fmap (getHrefEl True cLink) (catEithers eiths)
+
+  pure (e { innerHtmlFull = words } , catMaybes links)             
+      
+
+  where
+    g (x:xs) = case x of
+      Right e -> innerHtmlFull e <> (g xs) 
+      Left chr -> chr : (g xs)
+    g [] = []
+    
+    f = many ((Right <$> (try $ el "a" [])) <|> (Left <$> anyChar))
+
+  
+
+-- Generic function for dropping an abstract pattern from text 
+filterFromText :: ScraperT a -> Text -> Text
+filterFromText p txt = do
+  _ <- many p
+  liftA2 (:) anyChar $ filterFromText p 
+  
+  
