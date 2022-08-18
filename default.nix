@@ -2,7 +2,7 @@
 , exceptions, extra, HTTP, http-client, http-client-tls, lens, lib
 , modern-uri, mtl, parsec, random, text, time
 , transformers, uuid, webdriver, witherable, csv, stm, geckodriver, nodejs, pkgs
-, fetchFromGitHub, callCabal2nix
+, fetchFromGitHub, callCabal2nix, cryptohash
 }:
 
 let
@@ -43,18 +43,21 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
+    cryptohash
     aeson base bytestring containers directory exceptions extra HTTP
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
     text time transformers uuid webdriver witherable csv stm geckodriver# nodeDeps
   ];
   executableHaskellDepends = [
+    cryptohash
     base bytestring containers directory exceptions extra HTTP
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
     text time transformers uuid webdriver witherable csv stm geckodriver
   ];
   testHaskellDepends = [
+    cryptohash
     nix-thunk 
     base bytestring containers directory exceptions extra HTTP
     http-client http-client-tls lens modern-uri mtl parsec random

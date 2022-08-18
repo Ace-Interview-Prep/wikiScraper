@@ -1,0 +1,78 @@
+
+REQUIREMENTS!
+  - Must be able to identify exactly how we arrived at said body of text
+  - Must be able to tell when there's an overlapping trajectory ~~ intersectTrees :: A -> B -> GenredTree
+  - Must be able to scrape for a while without memory malfunction
+     - therfore: must output data chunks to system asap
+        - therefore no two paragraphs should 
+
+-- A paragraph ID must be a hash of the paragraph text
+  - So that we can recover it from the filesystem
+  - And the URL is in order to recover where the source of the text was
+
+SO!
+  a valid program here should allow for this:
+
+  Look at text, query tree for its filepath hash / Paragraph ID 
+
+  With Paragraph ID, find it's url AND be able to `step` up the scraped tree all the way up to the genre
+
+  --> WE should label the text with a genre and have it in a genre folder
+
+      cat results/<genre>/<hash>
+      >> { "genre": "physics", "text": "The neils bohr diagram has been ...." }
+
+      AND <hash> == hashSha256 "The neils bohr diagram has been ...."
+
+  
+
+WHAT IS THIS USED FOR:
+  - Each body of text should be processed so that we can create two outputs
+    1. the Sentence tree -> has this been said?
+    2. \x-> Genred Sets =<< stanford NLP $ x
+      -> of Verbs
+      -> of Nouns
+      -> of Abjectives
+
+WHAT IS THIIIS USED FOR:
+
+
+  f newSentence where f :: Text -> (GenreProbabilities, GrammaticalValidity (is exists), Support (times stated)) 
+
+
+
+Node label (Forest label) 
+  where
+    label = (ID_From, ThisLink, [ParagraphIDs]) 
+    -- this should work because the link on which the ElemHead (ID_From) exists, is in the label of the Forest
+
+type ID_From = ElemHead
+
+leaf == Node (_, "http://some wiki page", ["3rd43d", "ded32de33", "e32d32d"]) []
+
+
+
+- If i do make my own datatype then I can add conditionality so that a Leaf may be continued
+  although that is a lot of work when I can just do this
+
+
+  - the problem with this is that what elemhead gave each branch of the forest
+  - maybe I can use pTagWithLinks or generally, the link <a> tag to label each ( Link >>==> Forest )  
+
+  
+
+  - I probably just need a way to label the link so that its not detached
+   - its not as if this function couldnt re-attach it but why would i
+
+  - The core principle of what this func does is create a tree of links
+
+  Link {{ [ Element.link ]] && paragraphs >>= output -> link {{
+
+  - the actions to do the next step are imperative while the data structure is FRPish
+   - it may be fair to say it has to be imperative cuz we have no clue what the next step may be
+   - except at a high level... although this could be enough for FRP
+
+  - SO!!!!!!!
+    - Do some action (however we cut it up)
+    - label it in some context
+    - make it FRP ish in terms of combining the leaves 
