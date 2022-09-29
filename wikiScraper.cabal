@@ -37,5 +37,6 @@ executable wikiScraper
                     , directory
                     , cryptohash
                     , bytestring
+                    , transformers
     hs-source-dirs:   app
     default-language: Haskell2010

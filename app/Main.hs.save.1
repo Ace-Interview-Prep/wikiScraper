@@ -1,0 +1,307 @@
+{-# LANGUAGE StandaloneDeriving #-} {-# LANGUAGE DeriveGeneric #-} {-# LANGUAGE TupleSections #-} {-# 
+LANGUAGE OverloadedStrings #-}
+
+module Main where
+
+import Scrappy.Requests import Scrappy.Scrape import Scrappy.Elem.ChainHTML import 
+Scrappy.Elem.SimpleElemParser import Scrappy.Elem.Types (getHrefEl, innerHtmlFull, Elem', ElemHead, attrs, 
+elTag) import Scrappy.Links import Scrappy.BuildActions (catEithers) -- TODO: Move to Scrappy.Types
+
+import Network.HTTP.Client (newManager, Manager) import Network.HTTP.Client.TLS (tlsManagerSettings) import 
+Text.Parsec (anyChar, (<|>), parse, many, try) import Control.Applicative (liftA2) import Data.Maybe 
+(catMaybes, isJust, fromJust, fromMaybe) import Data.Text (Text, pack) import Data.Text.Encoding 
+(encodeUtf8) import Data.List
+
+import qualified Data.Map as Map import Data.Tree import qualified Data.Aeson as Aeson import GHC.Generics 
+import System.Directory import Crypto.Hash (SHA256(SHA256)) import Crypto.MAC (hmacAlg, hmacGetDigest) 
+import Data.Bifunctor (bimap) import Data.ByteString.Lazy (toStrict)
+
+-- data RetraceableTree = RetraceableTree (Map Link ([Paragraph], RetraceableTree)) -- deriving (Semigroup, 
+Monoid, Show)
+
+
+
+--type RetraceableTree = Map Link ([Paragraph], RetraceableTree)
+  
+
+
+
+
+--PSEUDO
+growLeaf :: Label -> IO (Tree Label)
+growLeaf = undefined
+--growLeaf (_, url, _) = runTree depthAllowed (depth->0) url 
+
+
+--type RetraceableTree' = Tree (Link [ElemHead])
+
+-- uncurry(1)
+-- >> Map Link ([Paragraph], Map Link 
+
+-- concept:
+
+
+type Genre = Text 
+type OriginalGenre = Genre
+
+data ResultOut = ResultOut { genre :: (OriginalGenre, Depth)
+                           , webId :: WebPointer
+                           , paragraph :: Text
+                           } deriving (Generic)
+
+instance Aeson.ToJSON ResultOut
+instance Aeson.FromJSON ResultOut
+
+type WebPointer = (Link, ElemHead)
+type ID_From = (ElemHead, ElemHead) -- Shell and Target
+type ParagraphID = String
+type LinkElem = Elem' String
+type ThisLink = Link
+type Paragraph = Text
+type Depth = Int
+type MaxDepth = Int
+
+
+  
+
+-- | We add in OriginalGenre so that we can merge and preserve 
+type Label = (ID_From, OriginalGenre, ThisLink, [ParagraphID]) 
+runTree :: Manager -> OriginalGenre -> (Depth, MaxDepth) -> (ID_From, ThisLink) -> IO (Tree Label)
+runTree mgr genre (depth, maxDepth) (id_from, link) = do
+  (_, html) <- getHtml mgr link
+  let
+    res :: [(Elem' String, [LinkElem])]
+    res = fromMaybe [] $ scrape pTagWithLinks html
+
+    labelLinks :: (Elem' String, [LinkElem]) -> [(ID_From, Link)] 
+    labelLinks (shell, elems) =
+      let
+        eHeadShell = (elTag shell, attrs shell)
+        filterMaybes i = (fmap.fmap) fromJust $ (filter (\(_, x) -> isJust x)) i
+        targetLinksWithLabel = filterMaybes $ fmap (\e -> ((elTag e, attrs e), getHrefEl True link e)) elems
+      in
+        fmap (bimap (eHeadShell,) id) $ targetLinksWithLabel
+    
+    labeledLinks :: [(ID_From, Link)]
+    labeledLinks = mconcat $ fmap labelLinks res
+
+    toResult e = ResultOut (genre, depth) (link, (elTag e, attrs e)) (pack $ innerHtmlFull e)
+
+    -- Importante! This is signing the ResultOut with the genre and depth
+    -- So that there's never a collision
+    -- We could still do flat analysis of the result dir to compare stuff
+    toSignedResult :: ResultOut -> (ParagraphID, ResultOut)
+    toSignedResult r =
+      let
+        x = encodeUtf8 $ genre <> (pack . show $ depth)
+        y = toStrict . Aeson.encode $ r
+      in 
+        (show $ hmacGetDigest $ hmacAlg SHA256 x y, r)
+
+    signedReferencedParagraphs :: [(ParagraphID, ResultOut)] 
+    signedReferencedParagraphs = fmap (toSignedResult . toResult . fst) res  
+
+  let paraIds = fmap fst signedReferencedParagraphs
+
+  mapM writeResult signedReferencedParagraphs
+
+  -- I could change this so that its a Map
+  -- then just Merge the maps and this will typecheck 
+  forest <- case depth == maxDepth of
+    True -> pure []
+    False -> mapM (runTree mgr genre (depth+1, maxDepth)) labeledLinks
+
+  let label = (id_from, genre, link, paraIds)
+
+  pure $ Node label forest 
+
+
+-------------------------------------------------------------------------------------------------------------------
+
+-- | ALTERNATE APPROACH
+-- SIMPLE BIDIRECTIONAL MAP 
+type SiteBidirectionalMap = Map.Map Link Payload
+--type BidirectionalMap a (b :: * -> *) = Map a (b a) 
+-- Note that this implies the whole internet could be mapped as
+
+type TheFuckingWeb = Map.Map BaseUrl SiteBidirectionalMap
+-- which could be further expanded using
+data Link' = SameSite Link
+           | ForeignRef Link 
+
+data RefsOut = Links [Link]
+             | EmptyLeaf -- Literal dead end
+             | RichLeaf
+             -- We purposely chose to stop here. The scraper should not scrape until infinity before going
+             -- to another term. arguably, this should take very small steps eg. do 5 depth for
+             -- each term / RichLeaf then cycle to the next 
+
+data RefIn = Start Genre -- The link is the Key itself 
+           | Transient Genre Link Depth
+
+-- | It is worth noting that with Maps, if we want the concept of a WebPointer, we can achieve this exactly
+-- | with parseOpeningTagF (== href) and can recover the containers by asking the link elem to be contained
+-- | as a match
+
+  -- A page is a singleton that gets merged into a map which it led/linked to
+  -- this means we can control hierarchy : if a parent finds that a descendant references it, we can
+  -- specially label this 
+
+
+  -- If this is parameterized with RefIn then I can return the Map
+  -- This means that a parent and child should have the same key
+
+  -- 1) Parent:                fromList [(Link "A", payload@(Links [Link "B"], [..], [..])) , (Link "B", RichLeaf, [Transient "GENRE" 23 (Link "A"), []]
+  -- 2) "Child" (not really):  fromList [(Link "B", payload@(Links [Link "C"], [..], [..])) , <<<<<<<<< node c,d,e,f >>>>>>>>>>>>>>>>>>>>>
+
+  -- SO both know of "B" but have different ideas of them, so we must know which is parent and this is evident in the merge
+  -- so we deduce this and then defer to the child for Paragraphs and RefsOut
+
+  -- SO each page should NOT create a singleton Map but instead a Map with its own ref in it
+
+
+-- | We add in OriginalGenre so that we can merge and preserve 
+type Payload = (RefsOut, [RefIn], [Paragraph])
+runTreeMap :: Manager -> OriginalGenre -> (Depth, MaxDepth) -> RefIn -> (ID_From, ThisLink) -> IO (Map.Map Link Payload)
+runTreeMap mgr genre (depth, maxDepth) (id_from, link) passedRef = do
+  (_, html) <- getHtml mgr link
+  let
+    res :: [(Elem' String, [LinkElem])]
+    res = fromMaybe [] $ scrape pTagWithLinks html
+    toResult e = ResultOut (genre, depth) (link, (elTag e, attrs e)) (pack $ innerHtmlFull e)
+
+    toSignedResult :: ResultOut -> (ParagraphID, ResultOut)
+    toSignedResult r =
+      let
+        x = encodeUtf8 $ genre <> (pack . show $ depth)
+        y = toStrict . Aeson.encode $ r
+      in 
+        (show $ hmacGetDigest $ hmacAlg SHA256 x y, r)
+
+    signedReferencedParagraphs :: [(ParagraphID, ResultOut)] 
+    signedReferencedParagraphs = fmap (toSignedResult . toResult . fst) res  
+
+    -- TODO: check if null 
+    links :: [Link]
+    links = fmap (getHrefEl True link . snd) res
+
+    toLinksMap :: [Link] -> Map.Map Link Payload
+    toLinksMap links = Map.fromList $ fmap (,(RichLeaf, [Transient genre depth link], [])) links   -- branches
+      
+  let paraIds = fmap fst signedReferencedParagraphs
+
+  mapM writeResult signedReferencedParagraphs
+
+  descendantMap <- case depth == maxDepth of
+    True -> pure []
+    False -> mapM (runTreeMap mgr genre (depth+1, maxDepth)) labeledLinks
+
+  -- Should I combine "this page" before or after?
+  -- the behaviour would be different for that one specifically 
+  let map = unionWith myUnion (toLinksMap links) descendantMap 
+
+  -- change this to updateWith or something 
+  let thisPageAsMap = fromList [(link, (Links links, [passedRef], fmap fst signedReferenceParagraphs))] -- this page
+
+  pure $ thisPageAsMap <> map
+    
+
+-- left: parent, right: descendant 
+myUnion :: Payload -> Payload -> Payload
+myUnion parent@(_, refsIn, _) child@(refsOut, refsInLower, paras)  = (refsOut, refsIn <> refsInLower {-allows duplication-}, paras)
+
+-- initializeGenre :: Genre -> IO (Genre, Link)
+-- initializeGenre genre = do
+
+writeResult :: Genre -> Depth -> (ParagraphID, ResultOut) -> IO ()
+writeResult genre depth (hashed, resultOut) = do
+  let dir = "/home/lazylambda/code/Ace/wikiResults/" <> genre <> "/" <> (show depth) <> "/"
+  let path = dir <> hashed <> ".json"
+  createDirectoryIfMissing False dir
+  Aeson.encodeFile path resultOut
+
+main :: IO ()
+main = do
+  mgr <- newManager tlsManagerSettings
+  (_, html) <- getHtml mgr $ Link "https://en.wikipedia.org/wiki/Network_topology"
+  
+
+  
+
+  -- let
+  --   res :: Maybe [(Elem' String, [Link])]
+  --   res = flip scrape html $ pTagWithLinks --  $ Link "https://en.wikipedia.org/wiki/Network_topology"
+
+  -- I'll need to create a function initializeGenre
+  
+  Node label forest <- runTree mgr "topology" (0, 0) (mempty, Link "https://en.wikipedia.org/wiki/Network_topology")
+
+  print label
+  mapM_ print forest
+  
+  --print tree
+  pure ()
+  -- mapM_ print res 
+  
+
+  -- [Link] >>= \link -> mapM_ recursiveFunc n links
+
+  -- - n : levels deep ; either approaches infinity or hits [] 
+  -- - but at this point I am a leaf 
+
+  -- - since i will quickly run into a memory overload as is, I can just have paragraphs be distinct IDs meaning the
+  --   tree will be:
+
+  --          type RecTree = Map Link ([ParaID], Map ParaID RecTree) -- Not all paragraphs will have links
+
+
+  -- - then: this is all gonna be run at the top level as a forest ~ list
+
+  -- successesM thisRecursiveFunction [@Genre]
+
+  --TODO(galen): should i make successesParM
+    
+  -- end data structure
+  
+
+  -- TODO
+      -- all text
+      -- all links
+      -- recursion into other pages 
+  
+  -- writeFile "results.txt" $ show $ maybe [] id tickerPrices
+
+
+-- Only since we care about the links here, otherwise this would be the parser that ignores style tags 
+pTagWithLinks :: ScraperT (Elem' String, [Elem' String])
+pTagWithLinks = do
+  e <- el "p" []
+  let txt = innerHtmlFull e
+  eiths <- case parse f "in p tag" txt of
+    Right x -> pure x 
+    --Right (words, links) -> pure (e { innerHtmlFull = words }, links)
+    Left _ -> error "idk ... weird" 
+
+
+  let words = g eiths
+  -- True because we'd like to stay on the same site
+  -- TODO(galen): split into ([SameSite], [OtherSite]) and append to a file with some way to do this later
+  -- and add to the tree 
+  let links = {-fmap (getHrefEl True cLink)-} (catEithers eiths)
+
+  pure (e { innerHtmlFull = words } , links)             
+      
+
+  where
+    g (x:xs) = case x of
+      Right e -> innerHtmlFull e <> (g xs) 
+      Left chr -> chr : (g xs)
+    g [] = []
+    
+    f = many ((Right <$> (try $ el "a" [])) <|> (Left <$> anyChar))
+
+  
+
+
+
+
