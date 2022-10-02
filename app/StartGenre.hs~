@@ -1,0 +1,58 @@
+module StartGenre where
+
+
+
+
+
+
+startGenre :: Genre -> IO Link
+startGenre genre = do
+  
+  I should try requesting the given term
+  I will either
+    get a page
+      Can tell by the fact that the original term is not present in the first paragraph
+        Good redirect / no redirect -> return this link 
+        Bad redirect -> report 
+         
+         
+       
+    get search results
+       Rank search results by what has the earliest same words
+
+       example:
+           America: History & Life
+
+           Something that has America && History ranked above History + Life AND America + Life
+
+
+
+
+
+chooseLink :: Genre -> [(Title,Link)] -> (Title, Link)
+chooseLink g opts = foldr (maxScore g) 0 opts
+
+
+upToWhich :: [String] -> String -> Int
+upToWhich (x:xs) str =
+  if elem x str
+  then 1 + upToWhich xs str
+  else upToWhich xs str 
+
+maxScore :: Genre -> (Title, Link) -> (Title, Link) -> (Title, Link)
+maxScore genre (title1, link1) (title2, link2) =
+  let
+    genreWords = words genre
+    title1Words = words title1
+    title2Words = words title2
+    
+  in
+    
+
+    
+  -- foldr (max . score) 
+
+
+
+
+--data Radon = Radon Metadata1 AtomicComposition

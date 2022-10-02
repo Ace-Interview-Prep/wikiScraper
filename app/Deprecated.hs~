@@ -1,0 +1,5 @@
+module Deprecated where
+
+
+-- This module is all of the code ive written for this project that is still valuable but there exists a better
+-- solution that may be yet untested

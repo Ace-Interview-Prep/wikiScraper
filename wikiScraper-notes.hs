@@ -345,6 +345,29 @@ Contiguity will allow us to expand on the Genre analysis
 
 
 
+------------------------------------------RANDOM
+
+-- data RetraceableTree = RetraceableTree (Map Link ([Paragraph], RetraceableTree))
+--   deriving (Semigroup, Monoid, Show)
+
+
+
+--type RetraceableTree = Map Link ([Paragraph], RetraceableTree)
+
+--PSEUDO
+growLeaf :: Label -> IO (Tree Label)
+growLeaf = undefined
+--growLeaf (_, url, _) = runTree depthAllowed (depth->0) url 
+
+
+--type RetraceableTree' = Tree (Link [ElemHead])
+
+-- uncurry(1)
+-- >> Map Link ([Paragraph], Map Link 
+
+-- concept:
+------------------------------------------------------------
+
 
 
 

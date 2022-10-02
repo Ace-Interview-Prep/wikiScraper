@@ -60,6 +60,16 @@
   (major1) == 0 && (major2) <  11 || \
   (major1) == 0 && (major2) == 11 && (minor) <= 9)
 #endif /* MIN_VERSION_cryptohash */
+/* package csv-0.1.2 */
+#ifndef VERSION_csv
+#define VERSION_csv "0.1.2"
+#endif /* VERSION_csv */
+#ifndef MIN_VERSION_csv
+#define MIN_VERSION_csv(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  1 || \
+  (major1) == 0 && (major2) == 1 && (minor) <= 2)
+#endif /* MIN_VERSION_csv */
 /* package directory-1.3.6.0 */
 #ifndef VERSION_directory
 #define VERSION_directory "1.3.6.0"
@@ -120,6 +130,16 @@
   (major1) == 1 && (major2) <  2 || \
   (major1) == 1 && (major2) == 2 && (minor) <= 4)
 #endif /* MIN_VERSION_text */
+/* package time-1.9.3 */
+#ifndef VERSION_time
+#define VERSION_time "1.9.3"
+#endif /* VERSION_time */
+#ifndef MIN_VERSION_time
+#define MIN_VERSION_time(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  9 || \
+  (major1) == 1 && (major2) == 9 && (minor) <= 3)
+#endif /* MIN_VERSION_time */
 /* package transformers-0.5.6.2 */
 #ifndef VERSION_transformers
 #define VERSION_transformers "0.5.6.2"
@@ -130,6 +150,16 @@
   (major1) == 0 && (major2) <  5 || \
   (major1) == 0 && (major2) == 5 && (minor) <= 6)
 #endif /* MIN_VERSION_transformers */
+/* package uri-encode-1.5.0.7 */
+#ifndef VERSION_uri_encode
+#define VERSION_uri_encode "1.5.0.7"
+#endif /* VERSION_uri_encode */
+#ifndef MIN_VERSION_uri_encode
+#define MIN_VERSION_uri_encode(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  5 || \
+  (major1) == 1 && (major2) == 5 && (minor) <= 0)
+#endif /* MIN_VERSION_uri_encode */
 
 /* tool gcc-10.3.0 */
 #ifndef TOOL_VERSION_gcc
