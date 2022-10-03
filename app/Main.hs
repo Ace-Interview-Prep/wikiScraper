@@ -253,15 +253,16 @@ scrapeWikiPage genInst link html =
 type BiDMap = Map.Map Link Payload'
 
 type Parent = RefIn
-
+--type Payload' = (RefsOut, [RefIn], PageID)
 -- Handle same page, all should be the same except refsIn
 -- This should only ever run when the Link matches one in the Map 
 insertFunction :: Payload' -> Payload' -> Payload'
 insertFunction new@(refsOut_N, (refsIn_N:[]), pageId_N) old@(refsOut, refsIn, pageId_O) =
+  (refsOut, refsIn_N:refsIn, pageId_O) 
   -- there should only be one in refsIn of new
-  if refsOut == refsOut_N && pageId_O == pageId_N -- law for a page 
-  then (refsOut, refsIn_N:refsIn, pageId_O) 
-  else error "this should be impossible" 
+  -- if refsOut == refsOut_N --  && pageId_O == pageId_N -- law for a page 
+  -- then (refsOut, refsIn_N:refsIn, pageId_O) 
+  -- else error "this should be impossible" 
 
 
 getGenre :: RefIn -> Genre
@@ -306,7 +307,7 @@ runTreeMapStateT mgr refIn (depthPrev, maxDepth) link = do
       -- filter links for ones that are already keys in State
       keysState <- gets Map.keys 
       let links' = filter (\x -> not $ elem x keysState) links 
-      mapM_ (runTreeMapStateT mgr (Transient genre (depth) link) (depth, maxDepth)) links
+      mapM_ (runTreeMapStateT mgr (Transient genre (depth) link) (depth, maxDepth)) links'
   pure () 
 
 
@@ -355,7 +356,7 @@ runGenre mgr genre = do
 
   start <- startGenre mgr $ unpack genre 
   appendFile "genre<->start.log" $ show (genre, start) <> "," 
-  (_, mappy) <- runStateT (runTreeMapStateT mgr (Start genre) (0, 10) start) mempty
+  (_, mappy) <- runStateT (runTreeMapStateT mgr (Start genre) (0, 8) start) mempty
 
   -- --print undefined -- placeholder to remind me to
   appendFile "completed.log" $ unpack genre <> ","
