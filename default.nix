@@ -1,7 +1,7 @@
 { mkDerivation, aeson, base, bytestring, containers, directory
 , exceptions, extra, HTTP, http-client, http-client-tls, lens, lib
 , modern-uri, mtl, parsec, random, text, time
-, transformers, uuid, webdriver, witherable, csv, stm, geckodriver, nodejs, pkgs
+, transformers, uuid, witherable, csv, stm, geckodriver, nodejs, pkgs
 , fetchFromGitHub, callCabal2nix, cryptohash
 }:
 
@@ -23,7 +23,13 @@ let
   };
   n = import nix-thunk {};
 
-  scrappySrc = n.thunkSource ./deps/scrappy; 
+  # scrappySrc = n.thunkSource ./deps/scrappy; 
+  scrappySrc = fetchFromGitHub {
+    owner = "Ace-Interview-Prep";
+    repo = "scrappy";
+    rev = "928e7c481721a25db0144a2763b049a17bc16c5c";
+    sha256 = "gzgxyJpYu3RmJdXSiOl+Oir+kylKov2piBUdEa49aDE=";
+  };
   scrappy = pkgs.haskell.lib.overrideCabal (callCabal2nix "scrappy" scrappySrc {}) {
     librarySystemDepends = [ nodejs ];
   };
@@ -47,19 +53,19 @@ mkDerivation {
     aeson base bytestring containers directory exceptions extra HTTP
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
-    text time transformers uuid webdriver witherable csv stm geckodriver# nodeDeps
+    text time transformers uuid witherable csv stm geckodriver# nodeDeps
   ];
   executableHaskellDepends = [
     cryptohash
-    base bytestring containers directory exceptions extra HTTP
+    aeson base bytestring containers directory exceptions extra HTTP
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
-    text time transformers uuid webdriver witherable csv stm geckodriver
+    text time transformers uuid witherable csv stm geckodriver
   ];
   testHaskellDepends = [
     cryptohash
     nix-thunk 
-    base bytestring containers directory exceptions extra HTTP
+    aeson base bytestring containers directory exceptions extra HTTP
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
     text time transformers uuid csv stm geckodriver
