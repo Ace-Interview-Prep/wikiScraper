@@ -2,10 +2,13 @@
 , exceptions, extra, HTTP, http-client, http-client-tls, lens, lib
 , modern-uri, mtl, parsec, random, text, time
 , transformers, uuid, webdriver, witherable, csv, stm, geckodriver, nodejs, pkgs
-, fetchFromGitHub, callCabal2nix, cryptohash
+, fetchFromGitHub, callCabal2nix, cryptohash, postgresql-simple, postgresql
 }:
 
 let
+
+  
+  
 #   scrappySrc = fetchFromGitHub {
 #     owner = "Ace-Interview-Prep";
 #     repo = "scrappy";
@@ -23,6 +26,13 @@ let
   };
   n = import nix-thunk {};
 
+
+  gargoylePkgs = import ./deps/gargoyle { haskellPackages = pkgs.haskellPackages; postgresql = pkgs.postgresql; };
+  # gargoyle = n.thunkSource "deps/gargoyle";
+  # gargoyle-postgresql = n.thunkSource "deps/gargoyle-postgresql";
+  # gargoyle-postgresql-connect = repos.gargoyle + "/gargoyle-postgresql-connect";
+  # gargoyle-postgresql-nix = repos.gargoyle + "/gargoyle-postgresql-nix";
+  
   scrappySrc = n.thunkSource ./deps/scrappy; 
   scrappy = pkgs.haskell.lib.overrideCabal (callCabal2nix "scrappy" scrappySrc {}) {
     librarySystemDepends = [ nodejs ];
@@ -48,6 +58,7 @@ mkDerivation {
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
     text time transformers uuid webdriver witherable csv stm geckodriver# nodeDeps
+    postgresql-simple gargoylePkgs.gargoyle-postgresql postgresql uuid
   ];
   executableHaskellDepends = [
     cryptohash
@@ -55,6 +66,7 @@ mkDerivation {
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
     text time transformers uuid webdriver witherable csv stm geckodriver
+    postgresql-simple gargoylePkgs.gargoyle-postgresql postgresql uuid
   ];
   testHaskellDepends = [
     cryptohash
@@ -63,7 +75,9 @@ mkDerivation {
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
     text time transformers uuid csv stm geckodriver
+    postgresql-simple gargoylePkgs.gargoyle-postgresql postgresql uuid
   ];
+  librarySystemDepends = [ postgresql ];
   homepage = "TODO";
   license = lib.licenses.bsd3;
 }

@@ -59,6 +59,8 @@ startGenre mgr genre = do
   
   let optionLinks = catMaybes . fmap (\e -> (,) <$> getAttr "title" e <*> getHrefEl True link e) $ fromJust $ scrape target html
 
+  print $ "Finished init of: " <> (show genre)
+  
   pure . snd $ chooseLink genre optionLinks
   
   --pure $ innerHtmlFull . head . fromJust $ scrape (el "form" []) html 

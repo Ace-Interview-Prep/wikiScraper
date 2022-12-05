@@ -1,0 +1,241 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
+
+module Types where
+
+-- import Scrappy.Elem.ElemHeadParse
+-- import Scrappy.Elem.SimpleElemParser
+import Scrappy.Elem.Types
+import Scrappy.Links
+
+import qualified Data.Aeson as Aeson
+import GHC.Generics
+import qualified Data.Map as Map
+import Crypto.Hash (SHA256(SHA256))
+import Crypto.MAC (hmacAlg, hmacGetDigest)
+import Data.Text
+import Data.Text.Encoding (encodeUtf8)
+
+
+
+toHashPath :: Link -> String
+toHashPath l = show $ hmacGetDigest $ hmacAlg SHA256 "myKey" $ encodeUtf8 . pack . show $ l
+
+
+getGenre :: RefIn -> Genre
+getGenre = \case
+  Transient genre _ _ -> genre
+  Start g -> g
+
+
+getDepth :: RefIn -> Int
+getDepth = \case
+  Start _ -> 0
+  Transient _ d _ -> d
+
+
+
+type Genre = Text 
+type OriginalGenre = Genre
+
+data ResultOut = ResultOut { genre :: (OriginalGenre, Depth)
+                           , webId :: WebPointer
+                           , paragraph :: Text
+                           } deriving (Generic)
+
+instance Aeson.ToJSON ResultOut
+instance Aeson.FromJSON ResultOut
+
+type WebPointer = (Link, ElemHead)
+type ID_From = (ElemHead, ElemHead) -- Shell and Target
+type ParagraphID = String
+type LinkElem = Elem' String
+type ThisLink = Link
+type Paragraph = Text
+type Depth = Int
+type MaxDepth = Int
+
+
+type Importance = Int   
+
+
+-------------------------------------------------------------------------------------------------------------------
+
+type TheFuckingWeb = BiDMap 
+-- which could be further expanded using
+data Link' = SameSite Link
+           | ForeignRef Link 
+
+data RefsOut = Links [Link]
+             | EmptyLeaf -- Literal dead end
+             | RichLeaf deriving (Show, Eq, Generic)
+
+instance Aeson.ToJSON RefsOut
+instance Aeson.FromJSON RefsOut
+             
+             -- We purposely chose to stop here. The scraper should not scrape until infinity before going
+             -- to another term. arguably, this should take very small steps eg. do 5 depth for
+             -- each term / RichLeaf then cycle to the next 
+
+data RefIn = Start Genre -- The link is the Key itself 
+           | Transient Genre Depth Link 
+           deriving (Show, Eq, Generic, Read)
+
+data STM_RefIn = STM_RefIn RefIn [Link] deriving (Generic, Show)
+
+instance Aeson.ToJSON STM_RefIn
+instance Aeson.FromJSON STM_RefIn
+
+instance Aeson.ToJSON RefIn
+instance Aeson.FromJSON RefIn
+
+instance Aeson.ToJSONKey Link
+instance Aeson.FromJSONKey Link
+
+-- | It is worth noting that with Maps, if we want the concept of a WebPointer, we can achieve this exactly
+-- | with parseOpeningTagF (== href) and can recover the containers by asking the link elem to be contained
+-- | as a match
+
+  -- A page is a singleton that gets merged into a map which it led/linked to
+  -- this means we can control hierarchy : if a parent finds that a descendant references it, we can
+  -- specially label this 
+
+
+  -- If this is parameterized with RefIn then I can return the Map
+  -- This means that a parent and child should have the same key
+
+  -- 1) Parent:                fromList [(Link "A", payload@(Links [Link "B"], [..], [..])) , (Link "B", RichLeaf, [Transient "GENRE" 23 (Link "A"), []]
+  -- 2) "Child" (not really):  fromList [(Link "B", payload@(Links [Link "C"], [..], [..])) , <<<<<<<<< node c,d,e,f >>>>>>>>>>>>>>>>>>>>>
+
+  -- SO both know of "B" but have different ideas of them, so we must know which is parent and this is evident in the merge
+  -- so we deduce this and then defer to the child for Paragraphs and RefsOut
+
+  -- SO each page should NOT create a singleton Map but instead a Map with its own ref in it
+
+-- TODO(galen): could this generalize past wikis
+data Page = Page { idLink :: Link
+                 , genreInstance :: (OriginalGenre, Depth)
+                 , paragraphs :: [Text]
+                 , wikiLinks :: [Link]
+                 , externalReferences :: [Link]
+                 -- This implies we use any wiki link to build tree
+                 -- And leave external refs for later 
+                 , categories :: [Text]
+                 } deriving (Generic)-- Aeson.ToJSON, Aeson.FromJSON)
+
+instance Aeson.ToJSON Page
+instance Aeson.FromJSON Page
+
+-- | genre :: [RefIn] -> GenreMap 
+-- | technically I dont even neeeeed refs out to evaluate a page itself but eh why not\
+type Payload' = (RefsOut, [RefIn], PageID)
+type PageID = Text
+type Payload'' = ([RefIn], PageID) 
+
+
+-- test = do
+--   mgr <- newManager tlsManagerSettings
+--   (_, html) <- getHtml mgr testCase
+--   testscrapeWikiPage ("Networking", 1) testCase html 
+
+-- testCase = Link "https://en.wikipedia.org/wiki/Packet-switching"
+
+
+-- <a rel="nofollow" class="external text" href="https://web.archive.org/web/20160324033133/http://www.packet.cc/files/ev-packet-sw.html">"The Evolution of Packet Switching"</a>
+
+
+
+
+-- testscrapeWikiPage :: (OriginalGenre, Depth) -> Link -> Html -> IO ([Link], Page)
+-- testscrapeWikiPage genInst link html =
+--   let 
+  
+--     res :: [(Elem' String, [LinkElem])]
+--     res = fromMaybe [] $ scrape pTagWithLinks html
+
+--     links :: [Link]
+--     links = catMaybes $ fmap (getHrefEl True link) $ mconcat $ fmap snd res
+    
+--     paras = fmap (pack . innerHtmlFull)
+
+-- --    referenceElems = flip scrape html $ el "div" [("class", "reflist")] `contains'` el "a" []
+
+--     referenceElems = flip scrape html $ elemParser (Just ["a"]) noPat [("class", Just "external text")]
+    
+-- ---  fmap (getHrefEl False link) $ fromMaybe [] $
+
+--     --references = catMaybes $ fmap (getHrefEl False link) $ mconcat $ fromMaybe [] $ referenceElems
+
+    
+--     categories = flip scrape html $ contains' (el "div" [("id", "mw-normal-catlinks")]) $ do 
+--       e <- elemParserWhere (Just ["a"]) noPat "href" (isPrefixOf "/wiki/Category:")
+--       let
+--         innards = innerHtmlFull e
+--       pure $ (strip . pack) innards
+
+--     categories' = fromMaybe [] $ mconcat <$> categories
+        
+--   in do
+--     print $ length res
+--     print "-------------------------------------------------------------------------------------------"
+--     print $ length links
+--     print "-------------------------------------------------------------------------------------------"    
+--     print $ length $  paras $ fmap fst res
+--     print "-------------------------------------------------------------------------------------------"    
+--     print $ length $ fromJust referenceElems
+--     print "-------------------------------------------------------------------------------------------"    
+-- --    print $ length references
+--     print "-------------------------------------------------------------------------------------------"    
+--     print $ length categories'
+--     pure $ (links, Page link genInst (paras $ fmap fst res) undefined categories')
+
+
+-- If i change to a Page datastructure, this means there is singular file pertaining to each page, less
+-- duplication and easier time relating paragraphs to each other (like for the application of contiguity)
+
+
+
+-- Parent <---------------------> Child <--------------------...--> 
+
+-- "I birthed this child"         "I am child with these things"
+--                                also "I birthed this child" 
+
+
+-- However instead to be more efficient I can say
+
+
+-- "Hey child I birthed you, my name (reference) is X"
+
+-- so that each Offspring can say:
+
+--   - I am child with this ID
+--   - I was birthed by Reference
+--   - My children that I plan to birth are: [a .. b] 
+
+--   and do:
+--    - birthChildWith "Hey child I birthed you, my name (reference) is X2" 
+
+
+type BiDMap = Map.Map Link Payload'
+type BiDMap' = Map.Map Link Payload'' -- further optimized 
+
+type Parent = RefIn
+
+
+
+
+-- TODO(galen): could this generalize past wikis
+data RefdPage = RefdPage { _idLink :: Link
+                         , _genreInstance :: (OriginalGenre, Depth)
+                         , _paragraphs :: [Text]
+                         , _wikiLinks :: [Link] -- generically samesiteLinks
+                         , _refsIn :: [RefIn] 
+                         , _externalReferences :: [Link]
+                         -- This implies we use any wiki link to build tree
+                         -- And leave external refs for later 
+                         , _categories :: [Text]
+                         } deriving (Generic)-- Aeson.ToJSON, Aeson.FromJSON)
+
+instance Aeson.ToJSON RefdPage
+instance Aeson.FromJSON RefdPage 

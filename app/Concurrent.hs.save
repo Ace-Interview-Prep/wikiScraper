@@ -1,0 +1,215 @@
+{-# LANGUAGE LambdaCase #-} {-# LANGUAGE DeriveAnyClass #-} {-# LANGUAGE 
+DeriveGeneric #-} {-# LANGUAGE OverloadedStrings #-} {-# LANGUAGE 
+TupleSections #-}
+
+
+module Concurrent where
+
+import Types import StartGenre (startGenre) import ScrapeWiki
+
+import Scrappy.Requests import Scrappy.Scrape -- import 
+Scrappy.Elem.ChainHTML -- import Scrappy.Elem.SimpleElemParser -- import 
+Scrappy.Elem.Types (getHrefEl, innerHtmlFull, Elem', ElemHead, attrs, 
+elTag, noPat) import Scrappy.Elem import Scrappy.Links import 
+Scrappy.BuildActions (catEithers) -- TODO: Move to Scrappy.Types
+
+import GHC.Conc (atomically) import Control.Concurrent (forkIO, 
+setNumCapabilities) import Control.Concurrent.STM.TVar (TVar, newTVarIO, 
+writeTVar, readTVar) import Control.Monad.IO.Class (liftIO) import 
+Control.Monad.Trans.State (StateT, modify, runStateT, gets) import 
+Data.Functor (void) import Database.PostgreSQL.Simple import 
+Network.HTTP.Client (newManager, Manager) import Network.HTTP.Client.TLS 
+(tlsManagerSettings) import Text.Parsec (anyChar, (<|>), parse, many, 
+try, digit) import Control.Applicative (liftA2, some) import Data.Maybe 
+(catMaybes, isJust, fromJust, fromMaybe) import Data.Text (Text, pack, 
+unpack, strip) import Data.Text.Encoding (encodeUtf8) import 
+Data.Traversable (for)
+
+import Data.Time.Clock (getCurrentTime, diffUTCTime) import qualified 
+Data.Set as Set import qualified Data.Map as Map import qualified 
+Data.Map.Strict as StrictMap import Data.Tree import Data.Either 
+(fromRight) import qualified Data.Aeson as Aeson import GHC.Generics 
+import System.Directory import Crypto.Hash (SHA256(SHA256)) import 
+Crypto.MAC (hmacAlg, hmacGetDigest) import Data.Bifunctor (bimap) import 
+Data.ByteString.Lazy (toStrict) import Text.CSV
+
+import Data.UUID (toString) import Data.UUID.V4 (nextRandom)
+
+
+
+
+main :: IO ()
+main = do
+  mgr <- newManager tlsManagerSettings
+  conn <- connectPostgreSQL "postgresql://lazylambda:Warhawks58!@localhost/wikiscraper"
+  -- set capabilities to max
+  putStrLn "How many processors would you like to use?" 
+  numProcessors <- (\s -> parse (read <$> (some digit)) "" s) <$> getLine
+  putStrLn $ "Using " <> (show $ fromRight 4 $ numProcessors) <> " processors"
+  genres <- parseGenres <$> (readFile "genres.csv" )
+
+  
+  
+  genresRef <- newTVarIO genres
+  setNumCapabilities $ fromRight 4 $ numProcessors
+  print "start genres" 
+  startWriteOriginalRefIns conn mgr genres  -- : data RefIn = Start Genre -- The link is the Key itself
+  print "genres initialized"
+  -- | This will do both the initialization and then writing one starting Link as a RefIn
+  -- | To wikiResults/<genre>/0/start.json
+  
+  mapM_ (\_ -> forkIO $ procMain conn mgr genresRef) [1..(fromRight 4 $ numProcessors)] 
+
+
+
+-- TODO(galen): make Main just main and split what it is now into ScrapeWiki and Sequential
+
+-- | Use mapM when there is multiple chunks 
+processChunk :: Connection -> Manager -> STM_RefIn -> IO ()
+processChunk conn mgr (STM_RefIn refIn links) = do
+  mapM_ (runWikiLink conn mgr refIn) links 
+
+
+getDepth :: RefIn -> Int
+getDepth = \case
+  Start _ -> 0
+  Transient _ d _ -> d
+
+
+
+
+writeRefInToDB :: Connection -> RefIn -> Link -> IO ()
+writeRefInToDB conn refIn link =
+  --execute conn "INSERT INTO client(link, refIn) VALUES ?" $ Reference link refIn
+
+  void $ execute conn "insert into reference_ins(link, link_from) values(?,?)" $ (show link, show refIn)
+  
+
+
+-- TODO(galen): make this a ReaderT
+runWikiLink :: Connection -> Manager -> RefIn -> Link -> IO ()   
+runWikiLink conn mgr refIn link = do
+
+  writeRefInToDB conn refIn link 
+  
+  liftIO $ print link
+--  liftIO $ print (depthPrev + 1) 
+  (_, html) <- liftIO $ getHtml mgr link
+  uuid' <- nextRandom 
+  let
+    depth = getDepth refIn 
+    genre = getGenre refIn
+    uuid = toString uuid'
+    filepath = baseResultsFolder <> (unpack genre) <> "/" <> (show depth) <> "/" <> uuid <> ".json" 
+    (links, wikiPage) = scrapeWikiPage (genre, depth) link html
+
+  startEvalPage <- liftIO getCurrentTime 
+  liftIO $ writePage genre depth link wikiPage 
+  endEvalPage <- liftIO getCurrentTime
+  liftIO $ print (diffUTCTime endEvalPage startEvalPage)
+
+  
+
+  writeSTM_RefIn filepath (Transient genre (depth + 1) link) links 
+  
+
+  -- | call mapM (\RefIn -> (getHtml >>= pure . scrapeWikiPage >>= putOutputs RefIn _)) RefIn.Links   
+
+
+
+
+writeSTM_RefIn :: FilePath -> RefIn -> [Link] -> IO ()
+writeSTM_RefIn filepath refIn links = do
+  Aeson.encodeFile filepath $ STM_RefIn refIn links
+
+  
+  
+
+-- putOutputs :: RefIn_ForDB -> Page -> STM_RefIn -> IO ()
+-- putOutputs = undefined
+
+
+-- There would be 1 RefIn_ForDB
+--                1 Page ; to be written
+--                1 STM_RefIn with n links contained   
+               
+
+
+
+getNextGenre :: TVar [(Importance, Genre)] -> IO (Importance, Genre)
+getNextGenre genresRef = atomically $ do
+  genres <- readTVar genresRef
+  writeTVar genresRef (tail genres)
+  pure (head genres)
+
+
+putGenreBack :: TVar [(Importance, Genre)] -> (Importance, Genre) -> IO ()
+putGenreBack genresRef genre = atomically $ do
+  genres <- readTVar genresRef
+  writeTVar genresRef $ genres <> [genre] 
+
+startWriteOriginalRefIns :: Connection -> Manager -> [(Importance, Genre)] -> IO ()
+startWriteOriginalRefIns conn mgr genres = do
+  linksWithGenre <- mapM (\(_,g) -> (g,) <$> (startGenre mgr $ unpack g)) genres
+
+
+  mapM_ (\(g, link) -> f conn link (Start g)) linksWithGenre 
+
+  where
+    f :: Connection -> Link -> RefIn -> IO () 
+    f conn link refIn = void $ execute conn "insert into reference_ins(link, link_from) values(?,?)" $ (show link, show refIn)
+  
+  
+parseGenres :: String -> [(Importance, Genre)]
+parseGenres s = fmap toTup $ fromRight undefined $ parseCSV "" s 
+  where
+    toTup [] = []
+    toTup (x:y:[]) = (read x, pack y)
+    
+  
+
+baseResultsFolder = "../wikiResults/" 
+
+-- | Destructively take a file ie remove it 
+takeRefIn :: Genre -> IO STM_RefIn
+takeRefIn genre' = takeRefIn' genre' 0 
+  where
+    takeRefIn' :: Genre -> Depth -> IO STM_RefIn
+    takeRefIn' genre n = do
+      let folderPath = baseResultsFolder <> (unpack genre) <> "/" <> (show n)  
+      files <- listDirectory folderPath 
+      case null files of
+        True -> takeRefIn' genre (n + 1)
+        False -> do
+          refIn <- Aeson.decodeFileStrict $ folderPath <> (head files) -- safe cuz definitely not null
+          removeFile $ folderPath <> (head files) 
+          pure $ fromJust refIn 
+
+processGenre :: Connection -> Manager -> (Importance, Genre) -> IO ()
+processGenre conn mgr (importance, genre) = do 
+  refIns <- for [1..importance] $ \_ -> do
+    takeRefIn genre 
+
+  mapM_ (processChunk conn mgr) refIns
+  
+
+--processRefIn :: STM_RefIn -> IO () 
+
+procMain :: Connection -> Manager -> TVar [(Importance, Genre)] -> IO ()
+procMain conn mgr genresRef = do
+  
+  genre <- getNextGenre genresRef 
+  processGenre conn mgr genre
+  
+  -- case genre `elem` importantGenres of
+  --   True -> do
+  --     chunkFiles <- get3ChunkFiles genre
+  --     mapM (processChunk mgr) chunkFiles  
+  --   False -> do
+  --     chunkFile <- getNextChunkFile genre
+  --     processChunk mgr chunkFile 
+
+  putGenreBack genresRef genre 
+
+
+  -- this is kinda bracket 

@@ -239,3 +239,47 @@ writeResult genre depth (hashed, resultOut) = do
   createDirectoryIfMissing True dir
   Aeson.encodeFile path resultOut
 
+
+
+-- || DEPRECATED BECAUSE : Only using [RefIn] in State now instead, this has too much memory 
+
+-- | TODO(galen): Have we handled how a leaf should look? such that
+-- |              we know it hasnt been processed and can be continued on?
+-- | TODO(galen): This doesnt show if the links found were none
+--type Payload' = (RefsOut, [RefIn], PageID)
+runTreeMapStateT :: Manager -> RefIn -> (Depth, MaxDepth) -> Link -> StateT BiDMap' IO ()
+runTreeMapStateT mgr refIn (depthPrev, maxDepth) link = do
+  liftIO $ print link
+  
+  (_, html) <- liftIO $ getHtml mgr link
+  let
+    depth = depthPrev + 1 
+    genre = getGenre refIn
+    (links, wikiPage) = scrapeWikiPage (genre, depth) link html
+
+  startEvalPage <- liftIO getCurrentTime 
+  liftIO $ writePage genre depth wikiPage
+  endEvalPage <- liftIO getCurrentTime
+  liftIO $ print (diffUTCTime endEvalPage startEvalPage)
+  let
+    --toStrict $ Aeson.encode wikiPage
+    pageId = pack . show $ hmacGetDigest $ hmacAlg SHA256 "myKey" $ (show link)
+    thisPayload = (Links links, [refIn], pageId)
+
+  -- This insert or edit does not know about other Parents --------------------------------
+  start <- liftIO $ getCurrentTime 
+  modify (\stateMap -> StrictMap.insertWith insertFunction link thisPayload stateMap)
+  stop <- liftIO $ getCurrentTime
+  
+  liftIO $ print (diffUTCTime stop start)
+  ----------------------------------------------------------------------------------------
+
+  -- This will update state from all of the Children of this page 
+  case depth == maxDepth of
+    True -> pure ()
+    False -> do
+      -- filter links for ones that are already keys in State
+      keysState <- gets Map.keys 
+      let links' = filter (\x -> not $ elem x keysState) links 
+      mapM_ (runTreeMapStateT mgr (Transient genre (depth) link) (depth, maxDepth)) links'
+  pure () 

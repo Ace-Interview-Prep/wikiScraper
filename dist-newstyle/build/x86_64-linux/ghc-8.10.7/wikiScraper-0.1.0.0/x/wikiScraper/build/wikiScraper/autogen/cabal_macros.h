@@ -80,6 +80,26 @@
   (major1) == 1 && (major2) <  3 || \
   (major1) == 1 && (major2) == 3 && (minor) <= 6)
 #endif /* MIN_VERSION_directory */
+/* package extra-1.7.9 */
+#ifndef VERSION_extra
+#define VERSION_extra "1.7.9"
+#endif /* VERSION_extra */
+#ifndef MIN_VERSION_extra
+#define MIN_VERSION_extra(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  7 || \
+  (major1) == 1 && (major2) == 7 && (minor) <= 9)
+#endif /* MIN_VERSION_extra */
+/* package gargoyle-postgresql-connect-0.1.0.1 */
+#ifndef VERSION_gargoyle_postgresql_connect
+#define VERSION_gargoyle_postgresql_connect "0.1.0.1"
+#endif /* VERSION_gargoyle_postgresql_connect */
+#ifndef MIN_VERSION_gargoyle_postgresql_connect
+#define MIN_VERSION_gargoyle_postgresql_connect(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  1 || \
+  (major1) == 0 && (major2) == 1 && (minor) <= 0)
+#endif /* MIN_VERSION_gargoyle_postgresql_connect */
 /* package http-client-0.6.4.1 */
 #ifndef VERSION_http_client
 #define VERSION_http_client "0.6.4.1"
@@ -110,6 +130,16 @@
   (major1) == 3 && (major2) <  1 || \
   (major1) == 3 && (major2) == 1 && (minor) <= 14)
 #endif /* MIN_VERSION_parsec */
+/* package postgresql-simple-0.6.4 */
+#ifndef VERSION_postgresql_simple
+#define VERSION_postgresql_simple "0.6.4"
+#endif /* VERSION_postgresql_simple */
+#ifndef MIN_VERSION_postgresql_simple
+#define MIN_VERSION_postgresql_simple(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  6 || \
+  (major1) == 0 && (major2) == 6 && (minor) <= 4)
+#endif /* MIN_VERSION_postgresql_simple */
 /* package scrappy-0.1.0.6 */
 #ifndef VERSION_scrappy
 #define VERSION_scrappy "0.1.0.6"
@@ -120,6 +150,16 @@
   (major1) == 0 && (major2) <  1 || \
   (major1) == 0 && (major2) == 1 && (minor) <= 0)
 #endif /* MIN_VERSION_scrappy */
+/* package stm-2.5.0.1 */
+#ifndef VERSION_stm
+#define VERSION_stm "2.5.0.1"
+#endif /* VERSION_stm */
+#ifndef MIN_VERSION_stm
+#define MIN_VERSION_stm(major1,major2,minor) (\
+  (major1) <  2 || \
+  (major1) == 2 && (major2) <  5 || \
+  (major1) == 2 && (major2) == 5 && (minor) <= 0)
+#endif /* MIN_VERSION_stm */
 /* package text-1.2.4.1 */
 #ifndef VERSION_text
 #define VERSION_text "1.2.4.1"
@@ -160,6 +200,16 @@
   (major1) == 1 && (major2) <  5 || \
   (major1) == 1 && (major2) == 5 && (minor) <= 0)
 #endif /* MIN_VERSION_uri_encode */
+/* package uuid-1.3.15 */
+#ifndef VERSION_uuid
+#define VERSION_uuid "1.3.15"
+#endif /* VERSION_uuid */
+#ifndef MIN_VERSION_uuid
+#define MIN_VERSION_uuid(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  3 || \
+  (major1) == 1 && (major2) == 3 && (minor) <= 15)
+#endif /* MIN_VERSION_uuid */
 
 /* tool gcc-10.3.0 */
 #ifndef TOOL_VERSION_gcc
