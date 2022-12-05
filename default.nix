@@ -26,7 +26,6 @@ let
   };
   n = import nix-thunk {};
 
-
   gargoylePkgs = import ./deps/gargoyle { haskellPackages = pkgs.haskellPackages; postgresql = pkgs.postgresql; };
   # gargoyle = n.thunkSource "deps/gargoyle";
   # gargoyle-postgresql = n.thunkSource "deps/gargoyle-postgresql";
@@ -57,21 +56,29 @@ mkDerivation {
     aeson base bytestring containers directory exceptions extra HTTP
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
+<<<<<<< HEAD
     text time transformers uuid webdriver witherable csv stm geckodriver# nodeDeps
     postgresql-simple gargoylePkgs.gargoyle-postgresql postgresql uuid
+=======
+    text time transformers uuid witherable csv stm geckodriver# nodeDeps
+>>>>>>> refs/remotes/origin/master
   ];
   executableHaskellDepends = [
     cryptohash
-    base bytestring containers directory exceptions extra HTTP
+    aeson base bytestring containers directory exceptions extra HTTP
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
+<<<<<<< HEAD
     text time transformers uuid webdriver witherable csv stm geckodriver
     postgresql-simple gargoylePkgs.gargoyle-postgresql postgresql uuid
+=======
+    text time transformers uuid witherable csv stm geckodriver
+>>>>>>> refs/remotes/origin/master
   ];
   testHaskellDepends = [
     cryptohash
     nix-thunk 
-    base bytestring containers directory exceptions extra HTTP
+    aeson base bytestring containers directory exceptions extra HTTP
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
     text time transformers uuid csv stm geckodriver
