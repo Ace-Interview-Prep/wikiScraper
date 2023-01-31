@@ -1,7 +1,7 @@
 { mkDerivation, aeson, base, bytestring, containers, directory
 , exceptions, extra, HTTP, http-client, http-client-tls, lens, lib
 , modern-uri, mtl, parsec, random, text, time
-, transformers, uuid, webdriver, witherable, csv, stm, geckodriver, nodejs, pkgs
+, transformers, uuid,  witherable, csv, stm, geckodriver, nodejs, pkgs
 , fetchFromGitHub, callCabal2nix, cryptohash, postgresql-simple, postgresql
 }:
 
@@ -56,24 +56,18 @@ mkDerivation {
     aeson base bytestring containers directory exceptions extra HTTP
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
-<<<<<<< HEAD
-    text time transformers uuid webdriver witherable csv stm geckodriver# nodeDeps
+    text time transformers uuid  witherable csv stm geckodriver# nodeDeps
     postgresql-simple gargoylePkgs.gargoyle-postgresql postgresql uuid
-=======
-    text time transformers uuid witherable csv stm geckodriver# nodeDeps
->>>>>>> refs/remotes/origin/master
+    aeson
   ];
   executableHaskellDepends = [
     cryptohash
     aeson base bytestring containers directory exceptions extra HTTP
     http-client http-client-tls lens modern-uri mtl parsec random
     scrappy
-<<<<<<< HEAD
-    text time transformers uuid webdriver witherable csv stm geckodriver
-    postgresql-simple gargoylePkgs.gargoyle-postgresql postgresql uuid
-=======
     text time transformers uuid witherable csv stm geckodriver
->>>>>>> refs/remotes/origin/master
+    postgresql-simple gargoylePkgs.gargoyle-postgresql postgresql uuid
+    aeson
   ];
   testHaskellDepends = [
     cryptohash
@@ -83,6 +77,7 @@ mkDerivation {
     scrappy
     text time transformers uuid csv stm geckodriver
     postgresql-simple gargoylePkgs.gargoyle-postgresql postgresql uuid
+    aeson
   ];
   librarySystemDepends = [ postgresql ];
   homepage = "TODO";

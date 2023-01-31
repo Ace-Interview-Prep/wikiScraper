@@ -65,7 +65,7 @@ baseWorkingFolder = "working/"
 main :: IO ()
 main = do
   mgr <- newManager tlsManagerSettings
-  conn <- connectPostgreSQL "postgresql://lazylambda:Warhawks58!@localhost/wikiscraper"
+  --conn <- connectPostgreSQL "postgresql://lazylambda:Warhawks58!@localhost/wikiscraper"
   -- set capabilities to max
   putStrLn "NOTE: in order to get this done quickly, this must complete initialization all together / not partially. Init is done when you see \"genres initialized\""
   sleep 5
@@ -84,12 +84,12 @@ main = do
   -- This will always be the last one to get initialized 
   hasBeenInitialized <- doesDirectoryExist $ baseWorkingFolder <> "Public and International Affairs/0"
   print hasBeenInitialized
-  when (not hasBeenInitialized) $ startWriteOriginalRefIns conn mgr genres 
+  when (not hasBeenInitialized) $ startWriteOriginalRefIns mgr genres 
   print "genres initialized"
   -- | This will do both the initialization and then writing one starting Link as a RefIn
   -- | To wikiResults/<genre>/0/start.json
   
-  mapM_ (\_ -> forkIO $ procMain conn mgr genresRef) [1..(fromRight 4 $ numProcessors)] 
+  mapM_ (\_ -> forkIO $ procMain mgr genresRef) [1..(fromRight 4 $ numProcessors)] 
 
 
 
@@ -105,11 +105,11 @@ main = do
 
 
 
-procMain :: Connection -> Manager -> TVar [(Importance, Genre)] -> IO ()
-procMain conn mgr genresRef = forever $ do
+procMain :: Manager -> TVar [(Importance, Genre)] -> IO ()
+procMain mgr genresRef = forever $ do
   print "start procMain"
   genre <- getNextGenre genresRef 
-  processGenre conn mgr genre
+  processGenre mgr genre
   print "got here"
   putGenreBack genresRef genre 
   print "finished putGenreBack"
@@ -149,8 +149,8 @@ getNextGenre genresRef = atomically $ do
 
 
 
-processGenre :: Connection -> Manager -> (Importance, Genre) -> IO ()
-processGenre conn mgr (importance, genre) = do
+processGenre :: Manager -> (Importance, Genre) -> IO ()
+processGenre mgr (importance, genre) = do
   putStrLn $ "For " <> (unpack genre) <> " I will run " <> (show importance) <> " refIns"
   refIns <- for [1..importance] $ \_ -> takeRefIn genre
 
@@ -158,19 +158,19 @@ processGenre conn mgr (importance, genre) = do
 
   print $ length refIns
   print "got hereeeeeee"
-  mapM_ (processChunk conn mgr) $ catMaybes refIns
+  mapM_ (processChunk mgr) $ catMaybes refIns
 
-processChunk :: Connection -> Manager -> STM_RefIn -> IO ()
-processChunk conn mgr (STM_RefIn refIn links) = do
+processChunk :: Manager -> STM_RefIn -> IO ()
+processChunk mgr (STM_RefIn refIn links) = do
   
-  mapM_ (runWikiLink conn mgr refIn) links 
+  mapM_ (runWikiLink mgr refIn) links 
 
 
 -- TODO(galen): make this a ReaderT
-runWikiLink :: Connection -> Manager -> RefIn -> Link -> IO ()   
-runWikiLink conn mgr refIn link = do
+runWikiLink :: Manager -> RefIn -> Link -> IO ()   
+runWikiLink mgr refIn link = do
   print "got here"
-  writeRefInToDB conn refIn link 
+  --writeRefInToDB refIn link 
   
   liftIO $ print link
 --  liftIO $ print (depthPrev + 1) 
@@ -196,25 +196,25 @@ runWikiLink conn mgr refIn link = do
   print $ "wrote STM_RefIn" <> (show nextDepth) <> " " <> (unpack genre)
 
 
-writeRefInToDB :: Connection -> RefIn -> Link -> IO ()
-writeRefInToDB conn refIn link =
-  void $ execute conn "insert into reference_ins(link, link_from) values(?,?)" $ (show link, show refIn)
+-- writeRefInToDB :: Connection -> RefIn -> Link -> IO ()
+-- writeRefInToDB conn refIn link =
+--   void $ execute conn "insert into reference_ins(link, link_from) values(?,?)" $ (show link, show refIn)
 
 putGenreBack :: TVar [(Importance, Genre)] -> (Importance, Genre) -> IO ()
 putGenreBack genresRef genre = atomically $ do
   genres <- readTVar genresRef
   writeTVar genresRef $ genres <> [genre] 
 
-startWriteOriginalRefIns :: Connection -> Manager -> [(Importance, Genre)] -> IO ()
-startWriteOriginalRefIns conn mgr genres = do
+startWriteOriginalRefIns :: Manager -> [(Importance, Genre)] -> IO ()
+startWriteOriginalRefIns mgr genres = do
   linksWithGenre <- mapM (\(_,g) -> (g,) <$> (startGenre mgr $ unpack g)) genres
-  mapM_ (\(g, link) ->  write g 0 conn link (Start g)) linksWithGenre
+  mapM_ (\(g, link) ->  write g 0 link (Start g)) linksWithGenre
         
   where
-    write :: Genre -> Depth -> Connection -> Link -> RefIn -> IO () 
-    write genre depth conn link refIn = do
+    write :: Genre -> Depth -> Link -> RefIn -> IO () 
+    write genre depth link refIn = do
       writeSTM_RefIn genre depth refIn [link]
-      void $ execute conn "insert into reference_ins(link, link_from) values(?,?)" $ (show link, show refIn)
+      --void $ execute conn "insert into reference_ins(link, link_from) values(?,?)" $ (show link, show refIn)
       
 
 writeSTM_RefIn :: Genre -> Depth -> RefIn -> [Link] -> IO ()
