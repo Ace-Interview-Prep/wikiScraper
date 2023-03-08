@@ -3,6 +3,7 @@
 , modern-uri, mtl, parsec, random, text, time
 , transformers, uuid,  witherable, csv, stm, geckodriver, nodejs, pkgs
 , fetchFromGitHub, callCabal2nix, cryptohash, postgresql-simple, postgresql
+, uri-encode
 }:
 
 let
@@ -60,6 +61,7 @@ mkDerivation {
     postgresql-simple #gargoylePkgs.gargoyle-postgresql
     postgresql uuid
     aeson
+    uri-encode
   ];
   executableHaskellDepends = [
     cryptohash
@@ -70,6 +72,7 @@ mkDerivation {
     postgresql-simple# gargoylePkgs.gargoyle-postgresql
     postgresql uuid
     aeson
+    uri-encode
   ];
   testHaskellDepends = [
     cryptohash
@@ -81,6 +84,7 @@ mkDerivation {
     postgresql-simple #gargoylePkgs.gargoyle-postgresql
     postgresql uuid
     aeson
+    uri-encode
   ];
   librarySystemDepends = [ postgresql ];
   homepage = "TODO";

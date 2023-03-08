@@ -49,7 +49,7 @@ executable wikiScraper
                     , uri-encode
                     , csv
                     , postgresql-simple
-                    , gargoyle-postgresql-connect
+--                    , gargoyle-postgresql-connect
                     , stm
                     , uuid
                     , extra  
